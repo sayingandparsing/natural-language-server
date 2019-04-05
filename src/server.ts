@@ -3,10 +3,10 @@ import {
 	createConnection, IConnection, TextDocumentSyncKind,
 	TextDocuments, TextDocument, Diagnostic, DiagnosticSeverity,
 	InitializeParams, InitializeResult, TextDocumentPositionParams,
-	CompletionItem, CompletionItemKind, DocumentOnTypeFormattingParams
-	Hover, Files
+	CompletionItem, CompletionItemKind, DocumentOnTypeFormattingParams,
+	Hover, Files, DidChangeTextDocumentParams, Range, TextEdit
 } from 'vscode-languageserver';
-import { TextEdit } from 'vscode';
+
 
 
 
@@ -21,7 +21,7 @@ let documents :TextDocuments = new TextDocuments()
 
 documents.listen(connection)
 
-let workspaceRoot :string;
+let workspaceRoot :string|null|undefined;
 
 connection.onInitialize((params): InitializeResult => {
     workspaceRoot = params.rootPath;
@@ -29,9 +29,12 @@ connection.onInitialize((params): InitializeResult => {
     return {
         capabilities: {
             textDocumentSync: documents.syncKind,
-            completionProvider: {
+            /*completionProvider: {
                 resolveProvider: true
-            },
+            },*/
+            documentOnTypeFormattingProvider: {
+                firstTriggerCharacter: '\s'
+            }
             //hoverProvider: true
         }
     }
@@ -45,12 +48,29 @@ const defaultCompletions :CompletionItem[] = [
 
 connection.onDocumentOnTypeFormatting (
     (request :DocumentOnTypeFormattingParams) :TextEdit[] => {
-
-
+        if (request.ch !== '\s') return []
+        const doc = documents.get(request.textDocument.uri)
+        if (!doc) return []
+        
+        const offset = doc.offsetAt(request.position)
+        const preceding :string = doc.getText().substring(offset-6, offset)
+        if (preceding.includes('this')) {
+            return [
+                {
+                    range: {
+                        start: doc.positionAt(offset-6), 
+                        end: doc.positionAt(offset-1)
+                    },
+                    newText: "works"
+                }
+            ]
+        } else {
+            return []
+        }
     }
 )
 
-connection.onCompletion(
+/* connection.onCompletion(
     (textDocumentPosition :TextDocumentPositionParams) :CompletionItem[] => {
         const doc = documents
                 .get(textDocumentPosition.textDocument.uri || '')
@@ -63,20 +83,6 @@ connection.onCompletion(
         
 
         
-    })
+    }) */
 
 
-class PositionTracker {
-    position :number
-
-
-
-    isContinuation() {
-        
-    }
-
-
-    registerChange() {
-
-    }
-}
